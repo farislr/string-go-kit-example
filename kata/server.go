@@ -4,11 +4,23 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/go-kit/kit/log"
 	httpTransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
-func NewServer(ctx context.Context, endpoints Endpoints) http.Handler {
+func Init(ctx context.Context, logger log.Logger) http.Handler {
+	var service StringService
+	{
+		service = NewService(logger)
+	}
+
+	endpoints := NewTransport(service)
+
+	return routes(ctx, endpoints)
+}
+
+func routes(ctx context.Context, endpoints Endpoints) http.Handler {
 	r := mux.NewRouter()
 	r.Use(commonMiddleware)
 

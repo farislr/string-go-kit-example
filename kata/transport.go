@@ -21,6 +21,7 @@ func NewTransport(s StringService) Endpoints {
 func makeUppercaseEndpoint(svc StringService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(UppercaseRequest)
+
 		v, err := svc.Uppercase(ctx, req.S)
 		if err != nil {
 			return UppercaseResponse{v, err.Error()}, nil

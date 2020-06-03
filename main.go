@@ -1,22 +1,21 @@
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"net/http"
+	"net"
 	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/string-service/kata"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/string-service/katagrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
-	var httpAddr = flag.String("http", ":8080", "http listen address")
+	listener, err := net.Listen("tcp", ":4040")
+	if err != nil {
+		panic(err)
+	}
 
 	var logger log.Logger
 	{
@@ -32,29 +31,14 @@ func main() {
 	level.Info(logger).Log("msg", "service started")
 	defer level.Info(logger).Log("msg", "service ended")
 
-	flag.Parse()
-	ctx := context.Background()
-
-	var stringService kata.StringService
+	server := grpc.NewServer()
 	{
-		stringService = kata.NewService(logger)
+		katagrpc.Init(server, logger)
+		reflection.Register(server)
 	}
 
-	errs := make(chan error)
-
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		errs <- fmt.Errorf("%s", <-c)
-	}()
-
-	endpoints := kata.NewTransport(stringService)
-
-	go func() {
-		fmt.Println("Listening on port", *httpAddr)
-		handler := kata.NewServer(ctx, endpoints)
-		errs <- http.ListenAndServe(*httpAddr, handler)
-	}()
-
-	level.Error(logger).Log("Exit", <-errs)
+	if err := server.Serve(listener); err != nil {
+		level.Error(logger).Log("Exit", err)
+		panic(err)
+	}
 }
